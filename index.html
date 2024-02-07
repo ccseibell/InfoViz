@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tree Cross Section Data Representation</title>
+    <style>
+        canvas {
+            border: 1px solid #000; /* Keep the canvas border */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="treeCrossSection" width="1200" height="1000"></canvas>
+
+    
+
+<script>
+    async function loadData() {
+        const trees = await d3.csv('Street_Tree_List-2022-01-30_FILTERED.csv');
+        processAndDraw(trees); // Process and draw using the loaded CSV data
+    }
+
+    function processAndDraw(dat) {
+    const decadeBuckets = {};
+    dat.forEach(tree => {
+        const date = tree.PlantDate ? new Date(tree.PlantDate) : null;
+        if (date && !isNaN(date.getFullYear())) {
+            const decade = Math.floor(date.getFullYear() / 10) * 10;
+            decadeBuckets[decade] = (decadeBuckets[decade] || 0) + 1;
+        }
+    });
+
+    // Convert bucket counts to an array 
+    const dataForDrawing = Object.keys(decadeBuckets).map(decade => ({
+        decade: parseInt(decade),
+        count: decadeBuckets[decade]
+    }));
+
+    // Sort by decade 
+    dataForDrawing.sort((a, b) => a.decade - b.decade);
+
+    console.log(dataForDrawing); 
+
+        const canvas = document.getElementById('treeCrossSection');
+        const context = canvas.getContext('2d');
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const outermostRadius = 370; // Fixed size for the outermost ring
+        const innermostRadius = 0; // Adjustable size for the innermost ring
+
+       
+        const data = dataForDrawing.map(entry => entry.count); 
+
+        const totalDataSum = data.reduce((acc, value) => acc + value, 0);
+        const availableSpace = outermostRadius - innermostRadius;
+
+        let currentRadius = outermostRadius;
+
+        
+        
+
+        data.forEach((value, index) => {
+        const ringSpace = (value / totalDataSum) * availableSpace;
+        const nextRadius = currentRadius - ringSpace;
+
+        // outer arc
+        context.beginPath();
+        context.arc(centerX, centerY, currentRadius, 0, Math.PI * 2);
+
+        // Fill 
+        context.fillStyle = `rgb(${120 - index * 20}, ${69}, ${19})`;
+        context.fill();
+
+        // Border
+        context.strokeStyle = 'black'; 
+        context.lineWidth = 5; 
+        context.stroke();
+
+        // Inner arc
+        context.beginPath();
+        context.arc(centerX, centerY, nextRadius, 0, Math.PI * 2, true);
+
+        // Set the composite operation to clear the inner arc, creating a ring
+        context.globalCompositeOperation = 'destination-out';
+        context.fill();
+
+        // Restore the composite operation to draw subsequent rings normally
+        context.globalCompositeOperation = 'source-over';
+
+        context.stroke();
+
+        // Close the path for the inner arc
+        context.closePath();
+
+    // Prepare for the next ring
+    currentRadius = nextRadius;
+});
+const xAxisYPosition = centerY + outermostRadius + 20; // Y position for the x-axis, below the outermost ring
+const axisColor = 'black'; 
+const axisWidth = 4; // Width of the axis lines
+
+// Draw the x-axis
+context.beginPath();
+context.moveTo(centerX - outermostRadius, xAxisYPosition);
+context.lineTo(centerX + outermostRadius, xAxisYPosition);
+context.strokeStyle = axisColor;
+context.lineWidth = axisWidth;
+context.stroke();
+context.closePath();
+
+// Draw the decade marks on the x-axis
+let decadeRadius = outermostRadius;
+// Draw the "Past" label at the beginning of the x-axis
+context.fillStyle = axisColor;
+context.font = '14px Arial';
+context.textAlign = 'right'; // Align text to the end of the axis
+context.fillText("Present", centerX, xAxisYPosition + 30);
+
+// Draw the "Present" label at the end of the x-axis
+context.textAlign = 'left'; 
+context.fillText("Past", centerX + outermostRadius, xAxisYPosition + 30);
+
+dataForDrawing.forEach((entry, index) => {
+    // Calculate x position for the decade mark based on the radius
+    const xPos = centerX + (index > 0 ? decadeRadius : 0);
+    
+    // Draw the decade mark line
+    context.beginPath();
+    context.moveTo(xPos, xAxisYPosition - 10); 
+    context.lineTo(xPos, xAxisYPosition + 10); 
+    context.strokeStyle = axisColor;
+    context.lineWidth = axisWidth;
+    context.stroke();
+    context.closePath();
+    
+     
+    
+    
+    // Update the radius for the next decade mark
+    if (index < dataForDrawing.length - 1) {
+        decadeRadius -= (entry.count / totalDataSum) * availableSpace;
+    }
+});
+
+        const legendX = centerX + outermostRadius + 20; // 40 pixels to the right of the outermost ring
+            const legendYStart = centerY - (data.length * 20) / 2;
+            context.font = '14px Arial';
+            context.textAlign = 'left';
+            context.textBaseline = 'middle';
+            context.fillStyle = 'black';
+
+            dataForDrawing.forEach((entry, index) => {
+                const legendY = legendYStart + index * 20;
+                context.fillText(`'${entry.decade}s: ${entry.count} trees`, legendX, legendY);
+            });
+        
+    }
+    
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadData();
+    });
+</script>
+
+    
+    
+</body>
+</html>
